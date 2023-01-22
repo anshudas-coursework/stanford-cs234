@@ -1,3 +1,6 @@
 .DS_Store
 dist
 __pycache__/
+*.vscode/
+*.zip
+writeup/
