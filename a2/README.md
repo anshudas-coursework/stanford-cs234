@@ -8,7 +8,7 @@ https://docs.conda.io/projects/continuumio-conda/en/latest/user-guide/install/in
 After installing Conda, follow the following instructions on a terminal:
 ```bash
 cd <assignment_dir>
-conda create --name 234a2 python-3.9
+conda create --name cs234-a2 python=3.9
 conda activate 234a2
 pip install -r requirements.txt
 git clone https://github.com/kenjyoung/MinAtar.git

@@ -28,8 +28,6 @@ class NatureQN(Linear):
         2. Set self.target_network to be the same configuration self.q_network but initialized from scratch
         3. What is the input size of the model?
 
-
-
         Hints:
             1. Simply setting self.target_network = self.q_network is incorrect.
             2. The following functions might be useful
@@ -48,7 +46,28 @@ class NatureQN(Linear):
 
         ##############################################################
         ################ YOUR CODE HERE - 20-30 lines ################
-
+        # Network constructor
+        def create_sequential(self, n_out_channels, spatial_extent, n_hidden) -> nn.Sequential:
+            return nn.Sequential(
+                nn.Conv2d( \
+                    in_channels = n_channels * self.config.state_history, \
+                    out_channels = n_out_channels, \
+                    kernel_size = spatial_extent \
+                ),
+                nn.ReLU(), # 
+                nn.Flatten(), # Use the default parameters for flatten (maintain batch dimension, flatten everything else)
+                nn.Linear( \
+                    in_features = (img_height-spatial_extent+1) * (img_width-spatial_extent+1) * n_out_channels, \
+                    out_features = n_hidden \
+                ),
+                nn.ReLU(),
+                nn.Linear(
+                    in_features = n_hidden, \
+                    out_features = num_actions \
+                )
+            )
+        self.q_network = create_sequential( self, 16, 3, 128 )
+        self.target_network = create_sequential( self, 16, 3, 128 )
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -73,7 +92,8 @@ class NatureQN(Linear):
 
         ##############################################################
         ################ YOUR CODE HERE - 4-5 lines lines ################
-
+        net = getattr( self, network )
+        out = net( state.permute(0, 3, 1, 2) )
         ##############################################################
         ######################## END YOUR CODE #######################
         return out

@@ -8,6 +8,7 @@ from q3_schedule import LinearExploration, LinearSchedule
 
 from configs.q4_linear import config
 import logging
+import os
 
 
 class Linear(DQN):
@@ -36,6 +37,11 @@ class Linear(DQN):
         ##############################################################
         ################ YOUR CODE HERE (3-4 lines) ##################
 
+        self.q_network = nn.Linear( img_height * img_width * n_channels * self.config.state_history, \
+            num_actions )
+        self.target_network = nn.Linear( img_height * img_width * n_channels * self.config.state_history, \
+            num_actions )
+
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -61,7 +67,8 @@ class Linear(DQN):
 
         ##############################################################
         ################ YOUR CODE HERE - 3-5 lines ##################
-
+        net = getattr( self, network )
+        out = net( torch.flatten( state, 1, -1 ) )
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -69,8 +76,8 @@ class Linear(DQN):
 
     def update_target(self):
         """
-        update_target_op will be called periodically
-        to copy Q network weights to target Q network
+        update_target will be called periodically to
+        copy Q network weights to target Q network
 
         Remember that in DQN, we maintain two identical Q networks with
         2 different sets of weights.
@@ -84,7 +91,9 @@ class Linear(DQN):
 
         ##############################################################
         ################### YOUR CODE HERE - 1-2 lines ###############
-
+        torch.save( self.q_network, os.path.dirname(__file__) + '/' + self.config.output_path + 'q_network.txt' )
+        self.target_network = torch.load( os.path.dirname(__file__) + '/' + self.config.output_path + 'q_network.txt' )
+        self.target_network.eval()
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -107,7 +116,7 @@ class Linear(DQN):
             q_values: (torch tensor) shape = (batch_size, num_actions)
                 The Q-values that your current network estimates (i.e. Q(s, a') for all a')
             target_q_values: (torch tensor) shape = (batch_size, num_actions)
-                The Target Q-values that your target network estimates (i.e. (i.e. Q_target(s', a') for all a')
+                The Target Q-values that your target network estimates (i.e. Q_target(s', a') for all a')
             actions: (torch tensor) shape = (batch_size,)
                 The actions that you actually took at each step (i.e. a)
             rewards: (torch tensor) shape = (batch_size,)
@@ -129,7 +138,10 @@ class Linear(DQN):
 
         ##############################################################
         ##################### YOUR CODE HERE - 3-5 lines #############
-
+        return torch.nn.functional.mse_loss( \
+            torch.sum( q_values * torch.nn.functional.one_hot(actions.to(torch.int64),num_classes=num_actions), axis=1 ), \
+            rewards + gamma * torch.amax( target_q_values, axis=1 ) * torch.bitwise_not( done_mask ) \
+        )
         ##############################################################
         ######################## END YOUR CODE #######################
 
@@ -146,7 +158,7 @@ class Linear(DQN):
         """
         ##############################################################
         #################### YOUR CODE HERE - 1 line #############
-
+        self.optimizer = torch.optim.Adam( self.q_network.parameters() )
         ##############################################################
         ######################## END YOUR CODE #######################
 
