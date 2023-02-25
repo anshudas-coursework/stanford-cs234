@@ -194,10 +194,9 @@ class PolicyGradient(object):
             #######################################################
             #########   YOUR CODE HERE - 5-10 lines.   ############
             returns = np.zeros(len(rewards))
-            future_return = 0
             for idx in reversed(range(len(returns))):
-                returns[idx] = rewards[idx] + self.config.gamma * future_return
-                future_return = returns[idx]
+                if (idx==len(returns)-1): returns[idx] = rewards[idx]
+                else: returns[idx] = rewards[idx] + self.config.gamma * returns[idx+1]
             #######################################################
             #########          END YOUR CODE.          ############
             all_returns.append(returns)
