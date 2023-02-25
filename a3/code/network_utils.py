@@ -25,7 +25,12 @@ def build_mlp(input_size, output_size, n_layers, size):
     """
     #######################################################
     #########   YOUR CODE HERE - 7-15 lines.   ############
-
+    if (n_layers==0): return nn.Linear(input_size,output_size)
+    else:
+        nn_list = [nn.Linear(input_size,size), nn.ReLU()]
+        nn_list.extend([layer for i in range(n_layers-1) for layer in [nn.Linear(size,size), nn.ReLU()]])
+        nn_list.append(nn.Linear(size,output_size))
+        return nn.Sequential(*nn_list)
     #######################################################
     #########          END YOUR CODE.          ############
 

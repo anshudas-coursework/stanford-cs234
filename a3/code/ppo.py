@@ -47,7 +47,11 @@ class PPO(PolicyGradient):
 
         #######################################################
         #########   YOUR CODE HERE - 10-15 lines.   ###########
-
+        self.optimizer.zero_grad()
+        r = (self.policy.action_distribution(observations).log_prob(actions) - old_logprobs).exp()
+        loss = -torch.mean( torch.minimum( r*advantages, torch.clamp(r, 1-self.config.eps_clip, 1+self.config.eps_clip)*advantages ) )
+        loss.backward()
+        self.optimizer.step()
         #######################################################
         #########          END YOUR CODE.          ############
 

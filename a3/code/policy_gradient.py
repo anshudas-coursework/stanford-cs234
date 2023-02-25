@@ -72,7 +72,10 @@ class PolicyGradient(object):
         """
         #######################################################
         #########   YOUR CODE HERE - 8-12 lines.   ############
-
+        self.network = build_mlp( self.observation_dim, self.action_dim, self.config.n_layers, self.config.layer_size )
+        if self.discrete: self.policy = CategoricalPolicy( self.network )
+        else: self.policy = GaussianPolicy( self.network, self.action_dim )
+        self.optimizer = torch.optim.Adam( self.policy.parameters(), self.lr )
         #######################################################
         #########          END YOUR CODE.          ############
 
@@ -190,7 +193,11 @@ class PolicyGradient(object):
             rewards = path["reward"]
             #######################################################
             #########   YOUR CODE HERE - 5-10 lines.   ############
-
+            returns = np.zeros(len(rewards))
+            future_return = 0
+            for idx in reversed(range(len(returns))):
+                returns[idx] = rewards[idx] + self.config.gamma * future_return
+                future_return = returns[idx]
             #######################################################
             #########          END YOUR CODE.          ############
             all_returns.append(returns)
@@ -215,7 +222,7 @@ class PolicyGradient(object):
         """
         #######################################################
         #########   YOUR CODE HERE - 1-2 lines.    ############
-
+        normalized_advantages = (advantages - np.mean(advantages)) / np.std(advantages)
         #######################################################
         #########          END YOUR CODE.          ############
         return normalized_advantages
@@ -268,7 +275,10 @@ class PolicyGradient(object):
         advantages = np2torch(advantages)
         #######################################################
         #########   YOUR CODE HERE - 5-7 lines.    ############
-
+        self.optimizer.zero_grad()
+        loss = -torch.mean( self.policy.action_distribution( observations ).log_prob( actions ) * advantages )
+        loss.backward()
+        self.optimizer.step()
         #######################################################
         #########          END YOUR CODE.          ############
 

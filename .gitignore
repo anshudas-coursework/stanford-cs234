@@ -4,4 +4,4 @@ __pycache__/
 *.vscode/
 *.zip
 writeup/
-*/results/
+*/results/*
