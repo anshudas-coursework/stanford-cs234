@@ -1,0 +1,7 @@
+numpy>=1.21.1
+setuptools==65.5.0
+torch
+ray[rllib]
+gym==0.21
+matplotlib
+scipy

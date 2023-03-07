@@ -1,5 +1,5 @@
 import numpy as np
-from MultiStageRocket import Bounds, Dynamics
+from envs.MultiStageRocket import Bounds, Dynamics
 
 class PulserConfig:
     def __init__(self, seed=1):

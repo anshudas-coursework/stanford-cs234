@@ -3,9 +3,9 @@
 import torch
 import numpy as np
 import random
-from ppo import PPO
-from config import PulserConfig
-from MultiStageRocket import Pulser
+from algorithms.ppo import PPO
+from configs.PulserConfig import PulserConfig
+from envs.MultiStageRocket import Pulser
 
 if __name__ == "__main__":
     # Create the environment

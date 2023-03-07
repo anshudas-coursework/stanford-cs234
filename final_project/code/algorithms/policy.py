@@ -3,9 +3,8 @@ import torch.nn as nn
 import torch.distributions as ptd
 
 from network_utils import np2torch, device
-from MultiStageRocket import Pulser
-from config import PulserConfig
-
+from envs.MultiStageRocket import Pulser
+from configs.PulserConfig import PulserConfig
 
 class BasePolicy:
     def action_distribution(self, observations):

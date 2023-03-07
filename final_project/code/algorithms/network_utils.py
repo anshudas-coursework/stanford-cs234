@@ -27,7 +27,6 @@ def build_mlp(input_size, output_size, n_layers, size, type=None):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 def np2torch(x, cast_double_to_float=True):
     """
     Utility function that accepts a numpy array and does the following:
