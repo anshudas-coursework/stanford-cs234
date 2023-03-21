@@ -3,13 +3,13 @@ import sys
 import logging
 import math
 import numpy as np
-from collections import deque
 import matplotlib
 
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import torch
 
+logging.getLogger('matplotlib.font_manager').disabled = True
 
 def export_plot(ys, ylabel, title, filename):
     """

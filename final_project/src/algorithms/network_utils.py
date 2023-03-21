@@ -11,13 +11,11 @@ def build_mlp(input_size, output_size, n_layers, size, type=None):
     Returns:
         An instance of (a subclass of) nn.Module representing the network.
     """
-    if (n_layers==0): return nn.Linear(input_size,output_size)
+    if (n_layers==0):
+        return nn.Linear(input_size,output_size)
     elif (type=='gru'):
-        nn_list = [nn.Linear(input_size,size), nn.Tanh()]
-        nn_list.extend([layer for i in range(n_layers-1) for layer in [nn.Linear(size,size), nn.Tanh()]])
-        nn_list.append(nn.Linear(size,output_size))
-        nn_list.append(nn.Tanh())
-        return nn.Sequential(*nn_list)
+        # need TO DO
+        pass
     else:
         nn_list = [nn.Linear(input_size,size), nn.Tanh()]
         nn_list.extend([layer for i in range(n_layers-1) for layer in [nn.Linear(size,size), nn.Tanh()]])

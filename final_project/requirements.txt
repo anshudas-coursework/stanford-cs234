@@ -5,3 +5,5 @@ ray[rllib]
 gym==0.21
 matplotlib
 scipy
+tensorflow
+pygame

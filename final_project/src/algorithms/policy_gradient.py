@@ -3,11 +3,10 @@ import torch
 import gym
 from gym.spaces import Discrete
 import os
-from general import get_logger, Progbar, export_plot
-from baseline_network import BaselineNetwork
-from network_utils import build_mlp, device, np2torch
-from policy import CategoricalPolicy, GaussianPolicy
-
+from algorithms.general import get_logger, export_plot
+from algorithms.baseline_network import BaselineNetwork
+from algorithms.network_utils import build_mlp, device, np2torch
+from algorithms.policy import GaussianPolicy
 
 class PolicyGradient(object):
     """
@@ -50,35 +49,17 @@ class PolicyGradient(object):
 
         self.lr = self.config.learning_rate
 
-        self.init_policy()
+        self.init_policy(fp=self.config.full_output_path)
 
         if config.use_baseline:
             self.baseline_network = BaselineNetwork(env, config)
 
-    def init_policy(self):
-        """
-        Please do the following:
-        1. Create a network using build_mlp. It should map vectors of size
-           self.observation_dim to vectors of size self.action_dim, and use
-           the number of layers and layer size from self.config
-        2. If self.discrete = True (meaning that the actions are discrete, i.e.
-           from the set {0, 1, ..., N-1} where N is the number of actions),
-           instantiate a CategoricalPolicy.
-           If self.discrete = False (meaning that the actions are continuous,
-           i.e. elements of R^d where d is the dimension), instantiate a
-           GaussianPolicy. Either way, assign the policy to self.policy
-        3. Create an Adam optimizer for the policy, with learning rate self.lr
-           Note that the policy is an instance of (a subclass of) nn.Module, so
-           you can call the parameters() method to get its parameters.
-        """
-        #######################################################
-        #########   YOUR CODE HERE - 8-12 lines.   ############
-        self.network = build_mlp( self.observation_dim, self.action_dim, self.config.n_layers, self.config.layer_size )
-        if self.discrete: self.policy = CategoricalPolicy( self.network )
-        else: self.policy = GaussianPolicy( self.network, self.action_dim )
+    def init_policy(self, fp=None):
+        if fp==None: self.network = build_mlp( self.observation_dim, self.action_dim, self.config.n_layers, self.config.layer_size )
+        else: self.network = torch.load( fp + "/model/policy"+self.config.policy_name+".weight" )
+        self.policy = GaussianPolicy( self.network, self.action_dim )
+        if fp!=None: self.policy.log_std = torch.load( fp + "/model/stddev"+self.config.policy_name+".weight" )
         self.optimizer = torch.optim.Adam( self.policy.parameters(), self.lr )
-        #######################################################
-        #########          END YOUR CODE.          ############
 
     def init_averages(self):
         """
@@ -185,21 +166,15 @@ class PolicyGradient(object):
         where T is the last timestep of the episode.
 
         Note that here we are creating a list of returns for each path
-
-        TODO: compute and return G_t for each timestep. Use self.config.gamma.
         """
 
         all_returns = []
         for path in paths:
             rewards = path["reward"]
-            #######################################################
-            #########   YOUR CODE HERE - 5-10 lines.   ############
             returns = np.zeros(len(rewards))
             for idx in reversed(range(len(returns))):
                 if (idx==len(returns)-1): returns[idx] = rewards[idx]
                 else: returns[idx] = rewards[idx] + self.config.gamma * returns[idx+1]
-            #######################################################
-            #########          END YOUR CODE.          ############
             all_returns.append(returns)
         returns = np.concatenate(all_returns)
 
@@ -212,20 +187,10 @@ class PolicyGradient(object):
         Returns:
             normalized_advantages: np.array of shape [batch size]
 
-        TODO:
-        Normalize the advantages so that they have a mean of 0 and standard
-        deviation of 1. Put the result in a variable called
-        normalized_advantages (which will be returned).
-
         Note:
         This function is called only if self.config.normalize_advantage is True.
         """
-        #######################################################
-        #########   YOUR CODE HERE - 1-2 lines.    ############
-        normalized_advantages = (advantages - np.mean(advantages)) / np.std(advantages)
-        #######################################################
-        #########          END YOUR CODE.          ############
-        return normalized_advantages
+        return (advantages - np.mean(advantages)) / np.std(advantages)
 
     def calculate_advantage(self, returns, observations):
         """
@@ -273,14 +238,10 @@ class PolicyGradient(object):
         observations = np2torch(observations)
         actions = np2torch(actions)
         advantages = np2torch(advantages)
-        #######################################################
-        #########   YOUR CODE HERE - 5-7 lines.    ############
         self.optimizer.zero_grad()
         loss = -torch.mean( self.policy.action_distribution( observations ).log_prob( actions ) * advantages )
         loss.backward()
         self.optimizer.step()
-        #######################################################
-        #########          END YOUR CODE.          ############
 
     def train(self):
         """
@@ -352,12 +313,24 @@ class PolicyGradient(object):
         """
         if env == None:
             env = self.env
-        paths, rewards = self.sample_path(env, num_episodes)
-        avg_reward = np.mean(rewards)
-        sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
-        msg = "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
-        self.logger.info(msg) # type: ignore
-        return avg_reward
+        
+        self.init_averages()
+        all_total_rewards = (
+            []
+        )  # the returns of all episodes samples for training purposes
+        averaged_total_rewards = []  # the returns for each iteration
+        for i in range(self.config.num_test_runs):
+            _, total_rewards = self.sample_path(env, num_episodes)
+            all_total_rewards.extend(total_rewards)
+            self.update_averages(total_rewards, all_total_rewards)
+            self.record_summary(i)
+            
+            # compute reward statistics for this batch and log
+            avg_reward = np.mean(total_rewards)
+            msg = "[Test {}]: Total Reward: {:04.2f}".format( i, avg_reward )
+            averaged_total_rewards.append(avg_reward)
+            self.logger.info(msg) # type: ignore
+        return
 
     def record(self):
         """

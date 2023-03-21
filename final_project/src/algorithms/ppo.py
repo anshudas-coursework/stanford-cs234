@@ -1,15 +1,9 @@
 import numpy as np
 import torch
-import torch.nn.functional as F
-import gym
-import itertools
-import copy
+from algorithms.general import export_plot
+from algorithms.network_utils import np2torch
+from algorithms.policy_gradient import PolicyGradient
 import os
-from general import get_logger, Progbar, export_plot
-from baseline_network import BaselineNetwork
-from network_utils import build_mlp, device, np2torch
-from policy import CategoricalPolicy, GaussianPolicy
-from policy_gradient import PolicyGradient
 
 class PPO(PolicyGradient):
 
@@ -31,11 +25,6 @@ class PPO(PolicyGradient):
         Perform one update on the policy using the provided data using the PPO clipped
         objective function.
 
-        To compute the loss value, you will need the log probabilities of the actions
-        given the observations as before. Note that the policy's action_distribution
-        method returns an instance of a subclass of torch.distributions.Distribution,
-        and that object can be used to compute log probabilities.
-
         Note:
             - PyTorch optimizers will try to minimize the loss you compute, but you
             want to maximize the policy's performance.
@@ -45,15 +34,11 @@ class PPO(PolicyGradient):
         advantages = np2torch(advantages)
         old_logprobs = np2torch(old_logprobs)
 
-        #######################################################
-        #########   YOUR CODE HERE - 10-15 lines.   ###########
         self.optimizer.zero_grad()
         r = (self.policy.action_distribution(observations).log_prob(actions) - old_logprobs).exp()
         loss = -torch.mean( torch.minimum( r*advantages, torch.clamp(r, 1-self.config.eps_clip, 1+self.config.eps_clip)*advantages ) )
         loss.backward()
         self.optimizer.step()
-        #######################################################
-        #########          END YOUR CODE.          ############
 
     def train(self):
         """
@@ -77,7 +62,7 @@ class PPO(PolicyGradient):
             all_total_rewards.extend(total_rewards)
             observations = np.concatenate([path["observation"] for path in paths])
             actions = np.concatenate([path["action"] for path in paths])
-            rewards = np.concatenate([path["reward"] for path in paths])
+            # rewards = np.concatenate([path["reward"] for path in paths])
             old_logprobs = np.concatenate([path["old_logprobs"] for path in paths])
 
             # compute Q-val estimates (discounted future returns) for each time step
@@ -108,8 +93,26 @@ class PPO(PolicyGradient):
                 self.logger.info("Recording...") # type: ignore
                 last_record = 0
                 self.record()
+            
+            # Save model
+            if np.remainder(t+1, 5)==0:
+                export_plot(
+                    averaged_total_rewards,
+                    "Running Score",
+                    self.config.env_name,
+                    self.config.plot_output,
+                )
+            if np.remainder(t+1, 100)==0:
+                if not os.path.exists(self.config.model_path):
+                    os.makedirs(self.config.model_path)
+                torch.save(self.policy.network, self.config.policy_output+"_"+str(t+1+self.config.last_iteration)+".weight")
+                torch.save(self.policy.log_std, self.config.deviation_output+"_"+str(t+1+self.config.last_iteration)+".weight")
+                np.save(self.config.scores_output, averaged_total_rewards)
+            
 
         self.logger.info("- Training done.") # type: ignore
+
+        # Save figure
         np.save(self.config.scores_output, averaged_total_rewards)
         export_plot(
             averaged_total_rewards,
@@ -117,6 +120,13 @@ class PPO(PolicyGradient):
             self.config.env_name,
             self.config.plot_output,
         )
+
+        # Save model
+        if not os.path.exists(self.config.model_path):
+            os.makedirs(self.config.model_path)
+        torch.save(self.policy.network, self.config.policy_output)
+        torch.save(self.policy.log_std, self.config.deviation_output)
+
 
     def sample_path(self, env, num_episodes=None):
         """
@@ -143,8 +153,9 @@ class PPO(PolicyGradient):
         episode_rewards = [] 
         paths = []
         t = 0
+        batch_idx = 0
 
-        while num_episodes or t < self.config.batch_size:
+        while num_episodes or batch_idx < self.config.batch_size:
             state = env.reset()
             states, actions, old_logprobs, rewards = [], [], [], []
             episode_reward = 0
@@ -162,8 +173,9 @@ class PPO(PolicyGradient):
                 t += 1
                 if done or step == self.config.max_ep_len - 1:
                     episode_rewards.append(episode_reward)
+                    batch_idx += 1
                     break
-                if (not num_episodes) and t == self.config.batch_size:
+                if (not num_episodes) and batch_idx == self.config.batch_size:
                     break
             
             path = {
